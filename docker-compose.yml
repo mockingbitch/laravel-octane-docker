@@ -1,24 +1,37 @@
 version: "3.1"
 services:
- nginx:
-  image: nginx:alpine
-  container_name: my-nginx
-  working_dir: /app
-  volumes:
-   - ./app:/app
-   - ./docker/nginx/conf/nginx.conf:/etc/nginx/conf/nginx.conf:ro
-   - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-  ports:
-   - "80:80" # HTTP
-
- php:
-  build: docker/php
-  container_name: my-php
-  working_dir: /app
-  volumes:
-   # Change directory name to your project name. Example "./app/YOUR_DIRECTORY_NAME:/app"
-   - ./app/laravel-swoole-tutorial:/app
-   - ./docker/php/php-ini-overrides.ini:/etc/php/7.4/fpm/conf.d/99-overrides.ini
-  ports:
-   - "1215:1215" # Swoole port
-   # - "9000:9000" # PHP-FPM port
+  php:
+    build: docker/php
+    container_name: my-php
+    working_dir: /var/www/html
+    volumes:
+    # Change directory name to your project name. Example "./app/YOUR_DIRECTORY_NAME:/app"
+      - ./app/:/var/www/html
+      - ./docker/php/php-ini-overrides.ini:/etc/php/8.1/fpm/conf.d/99-overrides.ini
+      # - ./docker/logs/nginx_log:/var/log/nginx
+    command: [ "php", "artisan", "octane:start", "--host=172.26.0.2", "--port=1215" ]
+    ports:
+      - "1215:1215" # Swoole port
+      # - "9000:9000" # PHP-FPM port
+    networks:
+      - app-network
+  nginx:
+    image: nginx:alpine
+    container_name: my-nginx
+    working_dir: /var/www/html
+    volumes:
+      - ./app:/var/www/html
+      - ./docker/nginx/conf/nginx.conf:/etc/nginx/conf/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/logs/nginx_log:/var/log/nginx
+    ports:
+      - "80:80" # HTTP
+    depends_on:
+      - php
+    links:
+      - php
+    networks:
+      - app-network
+networks:
+  app-network:
+    driver: bridge
